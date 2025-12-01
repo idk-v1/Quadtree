@@ -40,20 +40,49 @@ float fast_atan2(float y, float x)
 		return(angle);
 }
 
+float fast_sqrt(float x)
+{	
+	union
+	{
+		int i;
+		float x;
+	} u;
+	u.x = x;
+	u.i = (1 << 29) + (u.i >> 1) - (1 << 22);
+
+	// Two Babylonian Steps (simplified from:)
+	// u.x = 0.5f * (u.x + x/u.x);
+	// u.x = 0.5f * (u.x + x/u.x);
+	u.x = u.x + x / u.x;
+	u.x = 0.25f * u.x + x / u.x;
+
+	return u.x;
+}
+
 float powf_2(float x)
 {
     return x * x;
 }
 
+static float gravity = 0.05f;
+static float friction = 0.01f;
+static Sint32 mouseXR = 0;
+static Sint32 mouseYR = 0;
+static int interact = 0;
+
 struct Ball
 {
     float x, y, rad, vx, vy;
-    bool wasCol = false, onWall = false;
-    float vel = 2.f, gravity = 0.2f;
+    int type;
+    int colCount = 0;
+    bool reqDel = false;
+    bool onWall = false;
 
-    Ball(float x, float y, float rad) : x(x), y(y), rad(rad)
+    Ball(float x, float y, float rad, int type) :
+        x(x), y(y), rad(rad), type(type)
     {
         float r = rand() / (float)RAND_MAX * 360.f;
+        float vel = 2.f;
         vx = cosf(TO_RAD(r)) * vel;
         vy = sinf(TO_RAD(r)) * vel;
     }
@@ -61,15 +90,43 @@ struct Ball
     // Move circle according to velocity
     // If hit wall, move back and flip velocity
     void update(int width, int height)
-    {
-        onWall = false;
-        
-        vx *= 0.99f;
-        vy *= 0.99f;
+    {   
         vy += gravity;
+        float vel = fast_sqrt(vx * vx + vy * vy);
+        float vAngle = fast_atan2(vy, vx);
+
+        vel *= 1 - friction;
+        float maxVel = 10.f;
+        if (vel > maxVel)
+            vel = maxVel;
+        
+        vx = cosf(vAngle) * vel;
+        vy = sinf(vAngle) * vel;
+
+        int strength = 200;
+        int strSq = strength * strength;
+        float mouseDist = powf_2(mouseXR - x) + powf_2(mouseYR - y);
+        if (mouseDist < strSq)
+        {
+            if (interact == -2 && mouseDist < strSq * 0.25f)
+                reqDel = true;
+            else if (interact == 1 || interact == -1)
+            {
+                mouseDist = 1 - fast_sqrt(mouseDist) / (float)strength;
+
+                float mouseAngle = fast_atan2(mouseYR - y, mouseXR - x);
+                if (interact == -1)
+                    mouseDist = -mouseDist;
+            
+                vx += cosf(mouseAngle) * mouseDist;
+                vy += sinf(mouseAngle) * mouseDist;
+            }
+        }
+        
         x += vx;
         y += vy;
         
+        onWall = false;
         if (x - rad < 0)
         {
             vx = -vx;
@@ -95,44 +152,46 @@ struct Ball
             onWall = true;
         }
 
-        wasCol = false;
+        colCount = 0;
     }
 
     // Draw white if colliding
     // Depth color otherwise
     void draw(SDL_Surface* surface, int depth)
     {
-        drawCircle(surface, x, y, rad, wasCol ? rgb(0xFF, 0xFF, 0xFF) : colors[depth % 10]);
+        //drawCircle(surface, x, y, rad, wasCol ? rgb(0xFF, 0xFF, 0xFF) : colors[depth % 10]);
+        drawCircle(surface, x, y, rad, colors[type]);
     }
 
     // Circle circle collision
     // If they collide, change both
     // Trying to compare a lower depth circle to a higher depth circle would be hard,
     // So doing both parts of the collision in 1 is way easier
-    void collide(Ball& o)
+    void collide(Ball& o, int width, int height)
     {
-        if (powf_2(x - o.x) + powf_2(y - o.y) <= powf_2(rad + o.rad))
+        float dist = powf_2(x - o.x) + powf_2(y - o.y);
+        if (dist <= powf_2(rad + o.rad))
         {
             float angle = fast_atan2(y - o.y, x - o.x);
-            
-            vx = cosf(angle) * vel * 1.1f;
-            vy = sinf(angle) * vel * 1.1f;
-            o.vx = -cosf(angle) * vel * 1.1f;
-            o.vy = -sinf(angle) * vel * 1.1f;
 
-            if (!onWall)
-            {
-                x += vx;
-                y += vy;
-            }
-            if (!o.onWall)
-            {
-                o.x += o.vx;
-                o.y += o.vy;
-            }
+            float sqrt = fast_sqrt(dist);
+            float invDist = 1 - sqrt / (float)(rad + o.rad);
             
-            wasCol = true;
-            o.wasCol = true;
+            float cos = cosf(angle);
+            float sin = sinf(angle);
+
+            vx += cos * invDist;
+            vy += sin * invDist;
+            x += cos * invDist;
+            y += sin * invDist;
+
+            o.vx += -cos * invDist;
+            o.vy += -sin * invDist;
+            o.x += cos * -invDist;
+            o.y += sin * -invDist;
+            
+            colCount++;
+            o.colCount++;
         }
     }
 };
@@ -198,9 +257,9 @@ struct QuadNode
     // This will only be called for root
     // Just place it in root for now
     // After one update, the balls will be placed where they need to go
-    void addBall(float x, float y, float rad)
+    void addBall(float x, float y, float rad, int type)
     {
-        balls.push_back(Ball(x, y, rad));
+        balls.push_back(Ball(x, y, rad, type));
     }
 
     // Moves circles according to velocities
@@ -210,8 +269,16 @@ struct QuadNode
             for (int i = 0; i < 4; i++)
                 quad[i]->update(w, h);
 
-        for (int i = 0; i < balls.size(); i++)
-            balls[i].update(w, h);
+        for (int i = balls.size() - 1; i >= 0; i--)
+        {
+            if (balls[i].reqDel)
+            {
+                balls[i] = balls.back();
+                balls.pop_back();
+            }
+            else
+                balls[i].update(w, h);
+        }
     }
 
     // Attempts to move circles up the tree if they aren't entirely contained in quad
@@ -327,45 +394,45 @@ struct QuadNode
     }
 
     // n^2 collision with circles in this quad only
-    void collide()
+    void collide(int width, int height)
     {
         for (int i = 0; i < balls.size(); i++)
         {
             for (int ii = i + 1; ii < balls.size(); ii++)
-                balls[i].collide(balls[ii]);
+                balls[i].collide(balls[ii], width, height);
         }
     }
 
     // Collision with a circle with all circles in child quads
-    void collideWith(Ball& ball)
+    void collideWith(Ball& ball, int width, int height)
     {
         if (quad[0])
         {
             for (int i = 0; i < 4; i++)
-                quad[i]->collideWith(ball);
+                quad[i]->collideWith(ball, width, height);
         }
 
         for (int i = 0; i < balls.size(); i++)
         {
-            ball.collide(balls[i]);
+            ball.collide(balls[i], width, height);
         }
     }
 
     // Collision with local circles,
     // Then collision with each circle in this quad with all circles in child quads
-    void tryCollide()
+    void tryCollide(int width, int height)
     {
-        collide();
+        collide(width, height);
         
         if (quad[0])
         {
             for (int i = 0; i < balls.size(); i++)
                 for (int ii = 0; ii < 4; ii++)
-                    quad[ii]->collideWith(balls[i]);
+                    quad[ii]->collideWith(balls[i], width, height);
             
             for (int i = 0; i < 4; i++)
             {
-                quad[i]->tryCollide();
+                quad[i]->tryCollide(width, height);
             }
         }   
     }
@@ -386,7 +453,7 @@ struct QuadTree
         root.tryMove();
         root.trySubdivide();
         root.tryUndivide();
-        root.tryCollide();
+        root.tryCollide(root.width, root.height);
     }
 
     void draw(SDL_Surface* surface)
@@ -399,8 +466,8 @@ struct QuadTree
         return root.getBallCount();
     }
 
-    void addBall(float x, float y, float rad)
+    void addBall(float x, float y, float rad, int type)
     {
-        root.addBall(x, y, rad);
+        root.addBall(x, y, rad, type);
     }
 };

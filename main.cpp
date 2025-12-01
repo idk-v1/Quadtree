@@ -21,6 +21,28 @@
 
 #include "QuadTree.h"
 
+void getMousePos(Sint32* mouseX, Sint32* mouseY)
+{
+	float x = 0, y = 0;
+	SDL_GetGlobalMouseState(&x, &y);
+	*mouseX = x;
+	*mouseY = y;
+}
+
+void getMousePosRel(SDL_Window* window, Sint32* mouseX, Sint32* mouseY)
+{
+	Sint32 mx, my;
+	getMousePos(&mx, &my);
+	Sint32 winX, winY;
+	SDL_GetWindowPosition(window, &winX, &winY);
+	*mouseX = mx - winX;
+	*mouseY = my - winY;
+}
+
+void textBG(SDL_Surface* surface, Sint32 x, Sint32 y, Sint32 w, Sint32 h, char ch, void* data)
+{
+	drawRect(surface, x, y, w, h, rgb(0x00, 0x00, 0x00));
+}
 
 int main()
 {
@@ -36,7 +58,7 @@ int main()
 
 	Uint64 lastTime = SDL_GetTicks();
 	Uint64 deltaTime = 0;
-	Uint64 ups = 30;
+	Uint64 ups = 60;
 	Uint64 lastFPSTime = SDL_GetTicks();
 	Uint32 fpsCount = 0;
 	Uint32 fps = 0;
@@ -54,12 +76,13 @@ int main()
 	colors[8] = rgb(0xFF, 0x00, 0xFF);
 	colors[9] = rgb(0xFF, 0x00, 0x7F);
 
-    QuadTree tree(width, height, 25, 10);
-    int ballRad = 10;
-    for (int i = 0; i < 1000; i++)
-        tree.addBall(width / 2, height / 2, ballRad);
-        //tree.addBall(rand() % (width - 2 * ballRad) + ballRad, rand() % (height - 2 * ballRad) + ballRad, ballRad);
-
+    QuadTree tree(width, height, 10, 10);
+	int ballMin = 10;
+	int ballMax = 10;
+    for (int i = 0; i < 500; i++)
+        tree.addBall(width / 2, height / 2, ballMin + rand() % (ballMax - ballMin + 1), i % 10);
+    //tree.addBall(rand() % (width - 2 * ballRad) + ballRad, rand() % (height - 2 * ballRad) + ballRad, ballRad);
+    
 	bool running = true; 
 	while (running)
 	{
@@ -77,8 +100,32 @@ int main()
 				width = surface->w;
 				height = surface->h;
 				break;
+
+            case SDL_EVENT_KEY_DOWN:
+                switch (e.key.key)
+                {
+                    case SDLK_0: interact = 0; break;
+                    case SDLK_1: interact = 1; break;
+                    case SDLK_2: interact = -1; break;
+                    case SDLK_3: interact = 2; break;
+                    case SDLK_4: interact = -2; break;
+
+					case SDLK_RIGHT: ups = 120; break;
+					case SDLK_LEFT: ups = 10; break;
+                }
+                break;
+
+			case SDL_EVENT_KEY_UP:
+				switch (e.key.key)
+				{
+					case SDLK_RIGHT:
+					case SDLK_LEFT: ups = 60; break;
+				}
+				break;
 			}
 		}
+
+		getMousePosRel(window, &mouseXR, &mouseYR);
                 
 		Uint64 now = SDL_GetTicks();
 
@@ -87,6 +134,8 @@ int main()
 		{
 			deltaTime -= 1000 / ups;
 			ticks++;
+            if (interact == 2)
+                tree.addBall(mouseXR, mouseYR, ballMin + rand() % (ballMax - ballMin + 1), rand() % 10);
             tree.update();
 		}
 		lastTime = now;
@@ -106,18 +155,20 @@ int main()
 
         
 		// Info display
-		Uint32 textW, textH;
-		getTextSizeF(1, &textW, &textH, "FPS       (%9u)", fps);
-		drawRect(surface, 10, 10, textW, textH, rgb(0x00, 0x00, 0x00));
-		drawTextF(surface, 10, 10, 1, rgb(0xFF, 0xFF, 0xFF), "FPS       (%9u)", fps);
+		drawTextFFn(surface, 10, 10, 1, rgb(0xFF, 0xFF, 0xFF), textBG, NULL, "FPS       (%9u)", fps);
 
-		getTextSizeF(1, &textW, &textH, "Size      (%4d %4d)", width, height);
-		drawRect(surface, 10, 30, textW, textH, rgb(0x00, 0x00, 0x00));
-		drawTextF(surface, 10, 30, 1, rgb(0xFF, 0xFF, 0xFF), "Size      (%4d %4d)", width, height);
+		drawTextFFn(surface, 10, 30, 1, rgb(0xFF, 0xFF, 0xFF), textBG, NULL, "Size      (%4d %4d)", width, height);
         
-		getTextSizeF(1, &textW, &textH, "Count     (%9d)", ballCount);
-		drawRect(surface, 10, 50, textW, textH, rgb(0x00, 0x00, 0x00));
-		drawTextF(surface, 10, 50, 1, rgb(0xFF, 0xFF, 0xFF), "Count     (%9d)", ballCount);
+		drawTextFFn(surface, 10, 50, 1, rgb(0xFF, 0xFF, 0xFF), textBG, NULL, "Count     (%9d)", ballCount);
+
+		drawTextFFn(surface, 10, 70, 1, rgb(0xFF, 0xFF, 0xFF), textBG, NULL, "Mode      (%9s)",
+            interact == 1 ? "Attract" :
+            interact == -1 ? "Repel" :
+            interact == -2 ? "Delete" :
+            interact == 2 ? "Place" :
+            "None");
+
+		drawTextFFn(surface, 10, 90, 1, rgb(0xFF, 0xFF, 0xFF), textBG, NULL, "TPS       (%9llu)", ups);
         
 		SDL_UpdateWindowSurface(window);
 		fpsCount++;
