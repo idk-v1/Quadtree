@@ -64,44 +64,31 @@ float powf_2(float x)
     return x * x;
 }
 
-static float gravity = 0.05f;
-static float friction = 0.01f;
-static Sint32 mouseXR = 0;
-static Sint32 mouseYR = 0;
-static int interact = 0;
-
 struct Ball
 {
     float x, y, rad, vx, vy;
-    int type;
-    int colCount = 0;
+    uint8_t type;
     bool reqDel = false;
-    bool onWall = false;
+    bool col = false;
 
     Ball(float x, float y, float rad, int type) :
         x(x), y(y), rad(rad), type(type)
     {
         float r = rand() / (float)RAND_MAX * 360.f;
-        float vel = 2.f;
+        float vel = 1.f;
         vx = cosf(TO_RAD(r)) * vel;
         vy = sinf(TO_RAD(r)) * vel;
     }
 
     // Move circle according to velocity
     // If hit wall, move back and flip velocity
-    void update(int width, int height)
+    void update(int width, int height, int interact, 
+        Sint32 mouseXR, Sint32 mouseYR, float friction, float gravity)
     {   
         vy += gravity;
-        float vel = fast_sqrt(vx * vx + vy * vy);
-        float vAngle = fast_atan2(vy, vx);
-
-        vel *= 1 - friction;
-        float maxVel = 10.f;
-        if (vel > maxVel)
-            vel = maxVel;
         
-        vx = cosf(vAngle) * vel;
-        vy = sinf(vAngle) * vel;
+        vx *= 1.f - friction;
+        vy *= 1.f - friction;
 
         int strength = 200;
         int strSq = strength * strength;
@@ -110,13 +97,20 @@ struct Ball
         {
             if (interact == -2 && mouseDist < strSq * 0.25f)
                 reqDel = true;
-            else if (interact == 1 || interact == -1)
+            if (interact == 1 || interact == -1 || interact == -3)
             {
-                mouseDist = 1 - fast_sqrt(mouseDist) / (float)strength;
+                float sqrt = fast_sqrt(mouseDist);
+                
+                mouseDist = 1 - sqrt / (float)strength;
 
                 float mouseAngle = fast_atan2(mouseYR - y, mouseXR - x);
                 if (interact == -1)
                     mouseDist = -mouseDist;
+
+                if (interact == -3 && sqrt < 7.5f)
+                {
+                    reqDel = true;
+                }
             
                 vx += cosf(mouseAngle) * mouseDist;
                 vy += sinf(mouseAngle) * mouseDist;
@@ -126,41 +120,41 @@ struct Ball
         x += vx;
         y += vy;
         
-        onWall = false;
         if (x - rad < 0)
         {
             vx = -vx;
             x -= x - rad;
-            onWall = true;
         }
         if (y - rad < 0)
         {
             vy = -vy;
             y -= y - rad;
-            onWall = true;
         }
         if (x + rad >= width)
         {
             vx = -vx;
             x -= x + rad - width + 1;
-            onWall = true;
         }
         if (y + rad >= height)
         {
             vy = -vy;
             y -= y + rad - height + 1;
-            onWall = true;
         }
 
-        colCount = 0;
+        col = false;
     }
 
     // Draw white if colliding
     // Depth color otherwise
-    void draw(SDL_Surface* surface, int depth)
+    void draw(SDL_Surface* surface, int depth, bool colorSpeed)
     {
-        //drawCircle(surface, x, y, rad, wasCol ? rgb(0xFF, 0xFF, 0xFF) : colors[depth % 10]);
-        drawCircle(surface, x, y, rad, colors[type]);
+        if (colorSpeed)
+        {
+            float vel = fast_sqrt(vx * vx + vy * vy);
+            drawCircle(surface, x, y, rad, colors[std::min(9, (int)(vel / 2))]);
+        }
+        else
+            drawCircle(surface, x, y, rad, type ? rgb(0xFF, 0xFF, 0xFF) : rgb(0x7F, 0x7F, 0x7F));
     }
 
     // Circle circle collision
@@ -176,22 +170,25 @@ struct Ball
 
             float sqrt = fast_sqrt(dist);
             float invDist = 1 - sqrt / (float)(rad + o.rad);
-            
-            float cos = cosf(angle);
-            float sin = sinf(angle);
 
-            vx += cos * invDist;
-            vy += sin * invDist;
-            x += cos * invDist;
-            y += sin * invDist;
+            float cos = cosf(angle) * invDist;
+            float sin = sinf(angle) * invDist;
 
-            o.vx += -cos * invDist;
-            o.vy += -sin * invDist;
-            o.x += cos * -invDist;
-            o.y += sin * -invDist;
-            
-            colCount++;
-            o.colCount++;
+            vx += cos;
+            vy += sin;
+            x += cos;
+            y += sin;
+
+            o.vx += -cos;
+            o.vy += -sin;
+            o.x += -cos;
+            o.y += -sin;
+
+            type = (type + 1) % 2;
+            o.type = (o.type + 1) % 2;
+
+            col = true;
+            o.col = true;
         }
     }
 };
@@ -224,20 +221,21 @@ struct QuadNode
         balls.clear();
     }
 
-    void draw(SDL_Surface* surface)
+    void draw(SDL_Surface* surface, bool drawTree, bool colorSpeed)
     {   
         if (quad[0])
         {
-            quad[0]->draw(surface);
-            quad[1]->draw(surface);
-            quad[2]->draw(surface);
-            quad[3]->draw(surface);
+            quad[0]->draw(surface, drawTree, colorSpeed);
+            quad[1]->draw(surface, drawTree, colorSpeed);
+            quad[2]->draw(surface, drawTree, colorSpeed);
+            quad[3]->draw(surface, drawTree, colorSpeed);
         }
 
-        drawRectOut(surface, x, y, width, height, 1, colors[depth % 10]);
+        if (drawTree)
+            drawRectOut(surface, x, y, width, height, 1, colors[depth % 10]);
         
         for (int i = 0; i < balls.size(); i++)
-            balls[i].draw(surface, depth);
+            balls[i].draw(surface, depth, colorSpeed);
     }
 
     int getBallCount()
@@ -263,11 +261,12 @@ struct QuadNode
     }
 
     // Moves circles according to velocities
-    void update(int w, int h)
+    void update(int w, int h, int interact, Sint32 mouseXR, Sint32 mouseYR, 
+        float friction, float gravity)
     {
         if (quad[0])
             for (int i = 0; i < 4; i++)
-                quad[i]->update(w, h);
+                quad[i]->update(w, h, interact, mouseXR, mouseYR, friction, gravity);
 
         for (int i = balls.size() - 1; i >= 0; i--)
         {
@@ -277,7 +276,7 @@ struct QuadNode
                 balls.pop_back();
             }
             else
-                balls[i].update(w, h);
+                balls[i].update(w, h, interact, mouseXR, mouseYR, friction, gravity);
         }
     }
 
@@ -380,7 +379,8 @@ struct QuadNode
             for (int i = 0; i < 4; i++)
                 quad[i]->tryUndivide();
 
-            if (getBallCount() <= maxBalls)
+            // if changed to less maxdepth, force all up
+            if (getBallCount() <= maxBalls || depth >= maxDepth)
             {
                 for (int i = 0; i < 4; i++)
                 {
@@ -436,6 +436,18 @@ struct QuadNode
             }
         }   
     }
+
+    void setMaxDepth(int depth)
+    {
+        maxDepth = depth;
+        if (quad[0])
+        {
+            quad[0]->setMaxDepth(depth);
+            quad[1]->setMaxDepth(depth);
+            quad[2]->setMaxDepth(depth);
+            quad[3]->setMaxDepth(depth);
+        }
+    }
 };
 
 struct QuadTree
@@ -447,18 +459,18 @@ struct QuadTree
 
     // Probably don't have to do these steps seperately,
     // But it works fine, so I'm keeping it
-    void update()
+    void update(int interact, Sint32 mouseXR, Sint32 mouseYR, float friction, float gravity)
     {
-        root.update(root.width, root.height);
+        root.update(root.width, root.height, interact, mouseXR, mouseYR, friction, gravity);
         root.tryMove();
         root.trySubdivide();
         root.tryUndivide();
         root.tryCollide(root.width, root.height);
     }
 
-    void draw(SDL_Surface* surface)
+    void draw(SDL_Surface* surface, bool drawTree, bool colorSpeed)
     {
-        root.draw(surface);
+        root.draw(surface, drawTree, colorSpeed);
     }
 
     int getBallCount()
@@ -469,5 +481,10 @@ struct QuadTree
     void addBall(float x, float y, float rad, int type)
     {
         root.addBall(x, y, rad, type);
+    }
+
+    void setMaxDepth(int depth)
+    {
+        root.setMaxDepth(depth);
     }
 };
