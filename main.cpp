@@ -183,13 +183,13 @@ int main()
 		drawRect(surface, width - sidebarW, 0, sidebarW, height, rgb(0x0F, 0x0F, 0x0F));
         
 		// Info display
-		drawTextF(surface, width - sidebarW, 10, 1, rgb(0xFF, 0xFF, 0xFF), "FPS:%12u", fps);
+		drawTextF(surface, width - sidebarW + font_w / 2, 10, 1, rgb(0xFF, 0xFF, 0xFF), "FPS:%12u", fps);
 
-		drawTextF(surface, width - sidebarW, 30, 1, rgb(0xFF, 0xFF, 0xFF), "Size:%5d %5d", width - sidebarW, height);
+		drawTextF(surface, width - sidebarW + font_w / 2, 30, 1, rgb(0xFF, 0xFF, 0xFF), "Size:%5d %5d", width - sidebarW, height);
         
-		drawTextF(surface, width - sidebarW, 50, 1, rgb(0xFF, 0xFF, 0xFF), "Count:%10d", ballCount);
+		drawTextF(surface, width - sidebarW + font_w / 2, 50, 1, rgb(0xFF, 0xFF, 0xFF), "Count:%10d", ballCount);
 
-		drawTextF(surface, width - sidebarW, 70, 1, rgb(0xFF, 0xFF, 0xFF), "Interact:%7s",
+		drawTextF(surface, width - sidebarW + font_w / 2, 70, 1, rgb(0xFF, 0xFF, 0xFF), "Interact:%7s",
             interact == 1 ? "Attract" :
             interact == -1 ? "Repel" :
             interact == -2 ? "Delete" :
@@ -197,9 +197,9 @@ int main()
             interact == -3 ? "Vacuum" :
             "None");
 
-		drawTextF(surface, width - sidebarW, 90, 1, rgb(0xFF, 0xFF, 0xFF), "TPS:%12llu", ups);
+		drawTextF(surface, width - sidebarW + font_w / 2, 90, 1, rgb(0xFF, 0xFF, 0xFF), "TPS:%12llu", ups);
         
-		drawText(surface, width - sidebarW, 130, 1, rgb(0xFF, 0xFF, 0xFF),
+		drawText(surface, width - sidebarW + font_w / 2, 130, 1, rgb(0xFF, 0xFF, 0xFF),
 			"Controls\n\n"
 			" 0 No Interact\n"
 			" 1 Attract balls\n"
@@ -208,36 +208,36 @@ int main()
 			" 4 Delete balls\n"
 			" 5 Vacuum balls\n\n"
 			" Speed");
-		drawTextA(surface, width - sidebarW, 130 + 10 * font_h, 0.75, 2, 0, rgb(0xFF, 0xFF, 0xFF), 
+		drawTextA(surface, width - sidebarW + font_w / 2, 130 + 11 * font_h + 1 * lineSpacing, 0.75, 2, 0, rgb(0xFF, 0xFF, 0xFF),
 		"  /\\");
-		drawText(surface, width - sidebarW, 130 + 10 * font_h, 1, rgb(0xFF, 0xFF, 0xFF),
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 11 * font_h + 1 * lineSpacing, 1, rgb(0xFF, 0xFF, 0xFF),
 			"   Fast\n"
 			" > Normal\n"
 			" < Slow");
-		drawTextA(surface, width - sidebarW, 130 + 13 * font_h, 0.75, 2, 0, rgb(0xFF, 0xFF, 0xFF),
+		drawTextA(surface, width - sidebarW + font_w / 2, 130 + 14 * font_h + 2 * lineSpacing, 0.75, 2, 0, rgb(0xFF, 0xFF, 0xFF),
 		"  \\/");
-		drawText(surface, width - sidebarW, 130 + 13 * font_h, 1, rgb(0xFF, 0xFF, 0xFF),
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 14 * font_h + 2 * lineSpacing, 1, rgb(0xFF, 0xFF, 0xFF),
 			"   Snail");
 
-		drawText(surface, width - sidebarW, 130 + 15 * font_h, 1, rgb(0xFF, 0xFF, 0xFF),
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 16 * font_h, 1, rgb(0xFF, 0xFF, 0xFF),
 			" Tab");
-		drawText(surface, width - sidebarW, 130 + 15 * font_h, 1, 
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 16 * font_h + 1 * lineSpacing, 1,
 			useTree ? rgb(0x00, 0xFF, 0x00) : rgb(0xFF, 0x00, 0x00), "     Toggle Tree");
 
-		drawText(surface, width - sidebarW, 130 + 16 * font_h, 1, rgb(0xFF, 0xFF, 0xFF), " D");
-		drawText(surface, width - sidebarW, 130 + 16 * font_h, 1,
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 17 * font_h + 2 * lineSpacing, 1, rgb(0xFF, 0xFF, 0xFF), " D");
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 17 * font_h + 2 * lineSpacing, 1,
 			drawTree ? rgb(0x00, 0xFF, 0x00) : rgb(0xFF, 0x00, 0x00), "   Draw Tree");
 
-		drawText(surface, width - sidebarW, 130 + 17 * font_h, 1, rgb(0xFF, 0xFF, 0xFF), " S");
-		drawText(surface, width - sidebarW, 130 + 17 * font_h, 1,
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 18 * font_h + 3 * lineSpacing, 1, rgb(0xFF, 0xFF, 0xFF), " S");
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 18 * font_h + 3 * lineSpacing, 1,
 			colorSpeed ? rgb(0x00, 0xFF, 0x00) : rgb(0xFF, 0x00, 0x00), "   Color Speed");
 
-		drawText(surface, width - sidebarW, 130 + 19 * font_h, 1, rgb(0xFF, 0xFF, 0xFF), " G");
-		drawText(surface, width - sidebarW, 130 + 19 * font_h, 1,
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 20 * font_h + 4 * lineSpacing, 1, rgb(0xFF, 0xFF, 0xFF), " G");
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 20 * font_h + 4 * lineSpacing, 1,
 			gravity ? rgb(0x00, 0xFF, 0x00) : rgb(0xFF, 0x00, 0x00), "   Gravity");
 
-		drawText(surface, width - sidebarW, 130 + 20 * font_h, 1, rgb(0xFF, 0xFF, 0xFF), " F");
-		drawText(surface, width - sidebarW, 130 + 20 * font_h, 1,
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 21 * font_h + 5 * lineSpacing, 1, rgb(0xFF, 0xFF, 0xFF), " F");
+		drawText(surface, width - sidebarW + font_w / 2, 130 + 21 * font_h + 5 * lineSpacing, 1,
 			friction ? rgb(0x00, 0xFF, 0x00) : rgb(0xFF, 0x00, 0x00), "   Friction");
 
 		SDL_UpdateWindowSurface(window);
