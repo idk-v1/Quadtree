@@ -503,7 +503,7 @@ static void drawChar(SDL_Surface* surface, Sint32 x, Sint32 y, Uint32 size, Uint
 
 	if (size)
 	{
-		Sint32 index = (ch - ' ') * (stride / 32);
+		Sint32 index = (ch - ' ') * stride;
 		if (x >= border && y >= border &&
 			x + size * font_w < surface->w - border &&
 			y + size * font_h < surface->h - border)
@@ -528,7 +528,7 @@ static void drawChar(SDL_Surface* surface, Sint32 x, Sint32 y, Uint32 size, Uint
 	}
 	else // Hacky way of reducing text size, samples top left of 2x2 pixel section
 	{
-		Sint32 index = (ch - ' ') * (stride / 32);
+		Sint32 index = (ch - ' ') * stride;
 		if (x >= border && y >= border &&
 			x + font_w / 2 < surface->w - border &&
 			y + font_h / 2 < surface->h - border)
