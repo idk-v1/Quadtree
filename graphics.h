@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SDL3/SDL.h>
+#include "SDL.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -14,11 +14,11 @@
 #define DECLARE_ALIGNED(t, v, a) t v
 #endif
 
-static const SDL_PixelFormatDetails* pixFmt = NULL;
+static const SDL_PixelFormat* pixFmt = NULL;
 
 inline static Uint32 rgb(Uint8 r, Uint8 g, Uint8 b)
 {
-	return SDL_MapRGB(pixFmt, NULL, r, g, b);
+	return SDL_MapRGB(pixFmt, r, g, b);
 }
 
 inline static void setPixelUC(SDL_Surface* surface, Uint32 x, Uint32 y, Uint32 color)

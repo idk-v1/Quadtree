@@ -1,16 +1,8 @@
-// The memory leaks are not from me, idk why
-// My install maybe has problems, other classmates installs don't
-// We are both using SDL3-devel
-// It's from OpenGL
-// idk if its because limited graphics on my laptop and having to fall back
-// on vm start, it says 3d acceleration not supported by host
-// this laptop does not have a GPU
-
 // This uses my homemade pixel graphics library
 // This beats SDL's SDL_FillSurfaceRect() tho
 // Circles are just as fast as rectangles
 
-#include <SDL3/SDL.h>
+#include "SDL.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -22,33 +14,23 @@
 
 void getMousePos(Sint32* mouseX, Sint32* mouseY)
 {
-	float x = 0, y = 0;
-	SDL_GetGlobalMouseState(&x, &y);
+	int x = 0, y = 0;
+	SDL_GetMouseState(&x, &y);
 	*mouseX = x;
 	*mouseY = y;
 }
 
-void getMousePosRel(SDL_Window* window, Sint32* mouseX, Sint32* mouseY)
-{
-	Sint32 mx, my;
-	getMousePos(&mx, &my);
-	Sint32 winX, winY;
-	SDL_GetWindowPosition(window, &winX, &winY);
-	*mouseX = mx - winX;
-	*mouseY = my - winY;
-}
-
 int main()
 {
-	SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE);
 
     srand(time(NULL));
 
-	Uint32 width = 1200, height = 600;
+	Uint32 width = 1200, height = 500;
 
-	SDL_Window* window = SDL_CreateWindow("Balls", width, height, 0);
-	SDL_Surface* surface = SDL_GetWindowSurface(window);
-	pixFmt = SDL_GetPixelFormatDetails(surface->format);
+	SDL_Surface* surface = SDL_SetVideoMode(width, height, 32, SDL_ANYFORMAT | SDL_DOUBLEBUF);
+	pixFmt = surface->format;
+    SDL_WM_SetCaption("Balls", NULL);
 
 	Uint64 lastTime = SDL_GetTicks();
 	Uint64 deltaTime = 0;
@@ -96,18 +78,12 @@ int main()
 		{
 			switch (e.type)
 			{
-			case SDL_EVENT_QUIT:
+			case SDL_QUIT:
 				running = false;
 				break;
 
-			case SDL_EVENT_WINDOW_RESIZED:
-				surface = SDL_GetWindowSurface(window);
-				width = surface->w;
-				height = surface->h;
-				break;
-
-            case SDL_EVENT_KEY_DOWN:
-                switch (e.key.key)
+            case SDL_KEYDOWN:
+                switch (e.key.keysym.sym)
                 {
                     case SDLK_0: interact = 0; break; // changes mode to no interaction
                     case SDLK_1: interact = 1; break; // attracts balls to mouse
@@ -127,23 +103,23 @@ int main()
 						tree.setMaxDepth(useTree ? maxDepth : 0);
 						break;
 
-					case SDLK_G:
+					case SDLK_g:
 						if (gravity == 0.f)
 							gravity = 0.05f;
 						else
 							gravity = 0.f;
 						break;
-					case SDLK_F:
+					case SDLK_f:
 						if (friction == 0.f)
 							friction = 0.005f;
 						else
 							friction = 0.f;
 						break;
-					case SDLK_D:
+					case SDLK_d:
 						drawTree = !drawTree;
 						break;
 
-					case SDLK_S:
+					case SDLK_s:
 						colorSpeed = !colorSpeed;
 						break;
                 }
@@ -151,7 +127,7 @@ int main()
 			}
 		}
 
-		getMousePosRel(window, &mouseXR, &mouseYR);
+		getMousePos(&mouseXR, &mouseYR);
                 
 		Uint64 now = SDL_GetTicks();
 
@@ -240,11 +216,11 @@ int main()
 		drawText(surface, width - sidebarW, 130 + 20 * font_h, 1,
 			friction ? rgb(0x00, 0xFF, 0x00) : rgb(0xFF, 0x00, 0x00), "   Friction");
 
-		SDL_UpdateWindowSurface(window);
+		SDL_Flip(surface);
 		fpsCount++;
 	}
 
-	SDL_DestroyWindow(window);
+	SDL_FreeSurface(surface);
 	SDL_Quit();
 
 	return 0;
